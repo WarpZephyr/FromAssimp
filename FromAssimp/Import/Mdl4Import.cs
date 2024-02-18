@@ -118,7 +118,7 @@ namespace FromAssimp
                 for (int i = 0; i < 4; i++)
                 {
                     Vector3D textureCoordinate;
-                    if (i < uvCount)
+                    if (uvCount > i)
                     {
                         var uv = vertex.UVs[i];
                         textureCoordinate = new Vector3D(uv.X, uv.Y, 0f);
@@ -128,6 +128,12 @@ namespace FromAssimp
                         textureCoordinate = new Vector3D(1f, 1f, 1f);
                     }
                     newMesh.TextureCoordinateChannels[i].Add(textureCoordinate);
+                }
+
+                // Each UV is only X and Y so set the component count to 2
+                for (int i = 0; i < newMesh.TextureCoordinateChannelCount; i++)
+                {
+                    newMesh.UVComponentCount[i] = 2;
                 }
 
                 // Add Colors
@@ -150,12 +156,6 @@ namespace FromAssimp
                 foreach (int[] indices in faceIndices)
                 {
                     newMesh.Faces.Add(new Face(indices));
-                }
-
-                // Each UV is only X and Y so set the component count to 2
-                for (int i = 0; i < newMesh.TextureCoordinateChannelCount; i++)
-                {
-                    newMesh.UVComponentCount[i] = 2;
                 }
 
                 CollectVertices(mesh.Vertices, newMesh, mesh.BoneIndices.ToIntArray(), newBones, mesh.VertexFormat, out Dictionary<int, Bone> boneMap);

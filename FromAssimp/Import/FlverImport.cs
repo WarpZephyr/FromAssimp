@@ -5,6 +5,7 @@ using NumericsMatrix4x4 = System.Numerics.Matrix4x4;
 using FromAssimp.Extensions.Numerics;
 using FromAssimp.Extensions.Common;
 using FromAssimp.Extensions.Assimp;
+using System.Numerics;
 
 namespace FromAssimp
 {
@@ -44,7 +45,7 @@ namespace FromAssimp
             }
         }
 
-        private static void CollectVertices(List<FLVER.Vertex> vertices, Mesh newMesh, IList<int> boneIndices, Bone[] newBones, byte dynamic, out Dictionary<int, Bone> boneMap)
+        private static void CollectVertices(List<FLVER.Vertex> vertices, Mesh newMesh, IList<int> boneIndices, Bone[] newBones, byte dynamic, int defaultBoneIndex, out Dictionary<int, Bone> boneMap)
         {
             // Prepare a bone map
             boneMap = new Dictionary<int, Bone>(boneIndices.Count);
@@ -52,21 +53,25 @@ namespace FromAssimp
 
             for (int vertexIndex = 0; vertexIndex < vertices.Count; vertexIndex++)
             {
-                // Add Position
+                // Add Position and Normal
                 var vertex = vertices[vertexIndex];
                 if (hasBones && dynamic == 0)
                 {
                     int boneIndex = boneIndices[vertex.NormalW];
                     NumericsMatrix4x4.Invert(newBones[boneIndex].OffsetMatrix.ToNumericsMatrix4x4(), out NumericsMatrix4x4 worldTransform);
-                    newMesh.Vertices.Add(vertex.Position.ToAssimpVector3D(worldTransform));
+                    Vector3 positionNormal = vertex.Position + vertex.Normal;
+                    Vector3 positionTransformed = Vector3.Transform(vertex.Position, worldTransform);
+                    Vector3 normal = Vector3.Normalize(Vector3.Transform(positionNormal, worldTransform) - positionTransformed);
+                    newMesh.Vertices.Add(positionTransformed.ToAssimpVector3D());
+                    newMesh.Normals.Add(normal.ToAssimpVector3D());
 
                     // If the bone map does not already have the bone add it
                     if (!boneMap.ContainsKey(boneIndex))
                     {
-                        var aiBone = new Bone();
-                        aiBone.Name = newBones[boneIndex].Name;
-                        aiBone.OffsetMatrix = newBones[boneIndex].OffsetMatrix;
-                        boneMap.Add(boneIndex, aiBone);
+                        var newBone = new Bone();
+                        newBone.Name = newBones[boneIndex].Name;
+                        newBone.OffsetMatrix = newBones[boneIndex].OffsetMatrix;
+                        boneMap.Add(boneIndex, newBone);
                     }
 
                     boneMap[boneIndex].VertexWeights.Add(new VertexWeight(vertexIndex, 1f));
@@ -74,12 +79,17 @@ namespace FromAssimp
                 else if (hasBones && dynamic == 1)
                 {
                     newMesh.Vertices.Add(vertex.Position.ToAssimpVector3D());
+                    NumericsMatrix4x4.Invert(newBones[defaultBoneIndex].OffsetMatrix.ToNumericsMatrix4x4(), out NumericsMatrix4x4 worldTransform);
+                    Vector3 positionNormal = vertex.Position + vertex.Normal;
+                    Vector3 positionTransformed = Vector3.Transform(vertex.Position, worldTransform);
+                    Vector3 normal = Vector3.Normalize(Vector3.Transform(positionNormal, worldTransform) - positionTransformed);
+                    newMesh.Normals.Add(normal.ToAssimpVector3D());
 
                     for (int i = 0; i < 4; i++)
                     {
                         int boneIndex = vertex.BoneIndices[i];
                         float boneWeight = vertex.BoneWeights[i];
-                        if (boneWeight > 0)
+                        if (boneWeight > 0f)
                         {
                             // If the bone map does not already have the bone add it
                             if (!boneMap.ContainsKey(boneIndex))
@@ -100,10 +110,10 @@ namespace FromAssimp
                 else
                 {
                     newMesh.Vertices.Add(vertex.Position.ToAssimpVector3D());
+                    newMesh.Normals.Add(vertex.Normal.ToAssimpVector3D());
                 }
 
-                // Add Normal, BiTangent, and Tangents
-                newMesh.Normals.Add(vertex.Normal.ToAssimpVector3D());
+                // Add BiTangent, and Tangents
                 newMesh.BiTangents.Add(vertex.Bitangent.ToAssimpVector3D());
                 foreach (var tangent in vertex.Tangents)
                 {
@@ -115,7 +125,7 @@ namespace FromAssimp
                 for (int i = 0; i < 4; i++)
                 {
                     Vector3D textureCoordinate;
-                    if (i < uvCount)
+                    if (uvCount > i)
                     {
                         var uv = vertex.UVs[i];
                         textureCoordinate = new Vector3D(uv.X, uv.Y, 0f);
@@ -125,6 +135,12 @@ namespace FromAssimp
                         textureCoordinate = new Vector3D(1f, 1f, 1f);
                     }
                     newMesh.TextureCoordinateChannels[i].Add(textureCoordinate);
+                }
+
+                // Each UV is only X and Y so set the component count to 2
+                for (int i = 0; i < newMesh.TextureCoordinateChannelCount; i++)
+                {
+                    newMesh.UVComponentCount[i] = 2;
                 }
 
                 // Add Colors
@@ -156,13 +172,7 @@ namespace FromAssimp
                     newMesh.Faces.Add(new Face(indices));
                 }
 
-                // Each UV is only X and Y so set the component count to 2
-                for (int i = 0; i < newMesh.TextureCoordinateChannelCount; i++)
-                {
-                    newMesh.UVComponentCount[i] = 2;
-                }
-
-                CollectVertices(mesh.Vertices, newMesh, mesh.BoneIndices.ToIntArray(), newBones, mesh.Dynamic, out Dictionary<int, Bone> boneMap);
+                CollectVertices(mesh.Vertices, newMesh, mesh.BoneIndices.ToIntArray(), newBones, mesh.Dynamic, mesh.DefaultBoneIndex, out Dictionary<int, Bone> boneMap);
                 newMesh.Bones.AddRange(boneMap.Values);
                 consumedBoneIndicesList.AddRange(boneMap.Keys);
 
@@ -214,7 +224,7 @@ namespace FromAssimp
                     newMesh.UVComponentCount[i] = 2;
                 }
 
-                CollectVertices(mesh.Vertices, newMesh, mesh.BoneIndices, newBones, mesh.Dynamic, out Dictionary<int, Bone> boneMap);
+                CollectVertices(mesh.Vertices, newMesh, mesh.BoneIndices, newBones, mesh.Dynamic, mesh.DefaultBoneIndex, out Dictionary<int, Bone> boneMap);
 
                 // Add Bone references holding bone weights to the mesh
                 newMesh.Bones.AddRange(boneMap.Values);

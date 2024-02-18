@@ -124,12 +124,6 @@ namespace FromAssimp
                     newMesh.Faces.Add(new Face(indices));
                 }
 
-                // Each UV is only X and Y so set the component count to 2
-                for (int i = 0; i < newMesh.TextureCoordinateChannelCount; i++)
-                {
-                    newMesh.UVComponentCount[i] = 2;
-                }
-
                 CollectVertices(mesh.Vertices, newMesh, mesh.BoneIndices.ToIntArray(), newBones, mesh.VertexFormat, out Dictionary<int, Bone> boneMap);
 
                 // Add Bone references holding bone weights to the mesh
