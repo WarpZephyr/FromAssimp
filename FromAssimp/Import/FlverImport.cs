@@ -109,8 +109,26 @@ namespace FromAssimp
                 }
                 else
                 {
-                    newMesh.Vertices.Add(vertex.Position.ToAssimpVector3D());
-                    newMesh.Normals.Add(vertex.Normal.ToAssimpVector3D());
+                    NumericsMatrix4x4.Invert(newBones[defaultBoneIndex].OffsetMatrix.ToNumericsMatrix4x4(), out NumericsMatrix4x4 worldTransform);
+                    Vector3 positionNormal = vertex.Position + vertex.Normal;
+                    Vector3 positionTransformed = Vector3.Transform(vertex.Position, worldTransform);
+                    Vector3 normal = Vector3.Normalize(Vector3.Transform(positionNormal, worldTransform) - positionTransformed);
+                    newMesh.Vertices.Add(positionTransformed.ToAssimpVector3D());
+                    newMesh.Normals.Add(normal.ToAssimpVector3D());
+
+                    // If the bone map does not already have the bone add it
+                    if (!boneMap.ContainsKey(defaultBoneIndex))
+                    {
+                        var newBone = new Bone();
+                        newBone.Name = newBones[defaultBoneIndex].Name;
+                        newBone.OffsetMatrix = newBones[defaultBoneIndex].OffsetMatrix;
+                        boneMap.Add(defaultBoneIndex, newBone);
+                    }
+
+                    boneMap[defaultBoneIndex].VertexWeights.Add(new VertexWeight(vertexIndex, 1f));
+
+                    //newMesh.Vertices.Add(vertex.Position.ToAssimpVector3D());
+                    //newMesh.Normals.Add(vertex.Normal.ToAssimpVector3D());
                 }
 
                 // Add BiTangent, and Tangents
