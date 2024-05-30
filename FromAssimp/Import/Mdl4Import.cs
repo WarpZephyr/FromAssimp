@@ -5,7 +5,7 @@ using NumericsMatrix4x4 = System.Numerics.Matrix4x4;
 using FromAssimp.Extensions.Numerics;
 using FromAssimp.Extensions.Common;
 using FromAssimp.Extensions.Assimp;
-using System;
+using System.Numerics;
 
 namespace FromAssimp
 {
@@ -54,64 +54,84 @@ namespace FromAssimp
             for (int vertexIndex = 0; vertexIndex < vertices.Count; vertexIndex++)
             {
                 var vertex = vertices[vertexIndex];
+                var position = vertex.Position;
+                var normal = new Vector3(vertex.Normal.X, vertex.Normal.Y, vertex.Normal.Z);
+                var normalW = (int)vertex.Normal.W;
+                var tangent = new Vector3(vertex.Tangent.X, vertex.Tangent.Y, vertex.Tangent.Z);
+                var bitangent = new Vector3(vertex.Bitangent.X, vertex.Bitangent.Y, vertex.Bitangent.Z);
 
-                // Add Position
-                if (hasBones && vertexFormat != 0) // Multiple bones per vertex.
+                bool transformPosition = false;
+                int boneTransformationIndex = -1;
+                if (hasBones)
                 {
-                    newMesh.Vertices.Add(vertex.Position.ToAssimpVector3D());
-
-                    for (int i = 0; i < 4; i++)
+                    if (vertexFormat == 0)
                     {
-                        int boneIndex = vertex.BoneIndices[i];
-                        float boneWeight = vertex.BoneWeights[i];
-                        if (boneWeight > 0)
+                        transformPosition = true;
+                        boneTransformationIndex = boneIndices[(int)vertex.Normal.W];
+                        if (boneTransformationIndex > -1)
                         {
                             // If the bone map does not already have the bone add it
-                            if (boneIndex >= 0 && !boneMap.ContainsKey(boneIndex))
+                            if (!boneMap.ContainsKey(boneTransformationIndex))
                             {
                                 var newBone = new Bone();
-                                newBone.Name = newBones[boneIndex].Name;
-                                newBone.OffsetMatrix = newBones[boneIndex].OffsetMatrix;
-                                boneMap.Add(boneIndex, newBone);
+                                newBone.Name = newBones[boneTransformationIndex].Name;
+                                newBone.OffsetMatrix = newBones[boneTransformationIndex].OffsetMatrix;
+                                boneMap.Add(boneTransformationIndex, newBone);
                             }
 
-                            if (!boneMap[boneIndex].VertexWeights.Any(x => x.VertexID == vertexIndex))
+                            // Add this vertex weight to it's bone
+                            boneMap[boneTransformationIndex].VertexWeights.Add(new VertexWeight(vertexIndex, 1f));
+                        }
+                    }
+                    else if (vertexFormat != 0)
+                    {
+                        if (vertex.BoneIndices[0] == vertex.BoneIndices[1] && vertex.BoneIndices[0] == vertex.BoneIndices[2] && vertex.BoneIndices[0] == vertex.BoneIndices[3])
+                        {
+                            boneTransformationIndex = boneIndices[vertex.BoneIndices[0]];
+                        }
+
+                        for (int i = 0; i < 4; i++)
+                        {
+                            int boneIndex = vertex.BoneIndices[i];
+                            float boneWeight = vertex.BoneWeights[i];
+                            if (boneWeight > 0)
                             {
-                                boneMap[boneIndex].VertexWeights.Add(new VertexWeight(vertexIndex, boneWeight));
+                                // If the bone map does not already have the bone add it
+                                if (boneIndex >= 0 && !boneMap.ContainsKey(boneIndex))
+                                {
+                                    var newBone = new Bone();
+                                    newBone.Name = newBones[boneIndex].Name;
+                                    newBone.OffsetMatrix = newBones[boneIndex].OffsetMatrix;
+                                    boneMap.Add(boneIndex, newBone);
+                                }
+
+                                if (!boneMap[boneIndex].VertexWeights.Any(x => x.VertexID == vertexIndex))
+                                {
+                                    boneMap[boneIndex].VertexWeights.Add(new VertexWeight(vertexIndex, boneWeight));
+                                }
                             }
                         }
                     }
+
                 }
-                else if (hasBones && vertexFormat == 0) // Single bone per vertex.
+
+                // Transform Position, Normal, Tangents, and BiTangent
+                if (boneTransformationIndex > -1)
                 {
-                    // Get the local bone index from Normal W, then the final bone index from the mesh.
-                    var boneIndex = boneIndices[(int)vertex.Normal.W];
-                    var bone = newBones[boneIndex];
-                    NumericsMatrix4x4.Invert(bone.OffsetMatrix.ToNumericsMatrix4x4(), out NumericsMatrix4x4 worldTransform);
+                    NumericsMatrix4x4.Invert(newBones[boneTransformationIndex].OffsetMatrix.ToNumericsMatrix4x4(), out NumericsMatrix4x4 worldTransform);
+                    if (transformPosition)
+                        position = Vector3.Transform(position, worldTransform);
 
-                    newMesh.Vertices.Add(vertex.Position.ToAssimpVector3D(worldTransform));
-
-                    // If the bone map does not already have the bone add it
-                    if (boneIndex >= 0 && !boneMap.ContainsKey(boneIndex))
-                    {
-                        var newBone = new Bone();
-                        newBone.Name = newBones[boneIndex].Name;
-                        newBone.OffsetMatrix = newBones[boneIndex].OffsetMatrix;
-                        boneMap.Add(boneIndex, newBone);
-                    }
-
-                    // Add this vertex weight to it's bone
-                    boneMap[boneIndex].VertexWeights.Add(new VertexWeight(vertexIndex, 1f));
-                }
-                else // No bones
-                {
-                    newMesh.Vertices.Add(vertex.Position.ToAssimpVector3D());
+                    normal = Vector3.TransformNormal(normal, worldTransform) * -1;
+                    bitangent = Vector3.TransformNormal(bitangent, worldTransform) * -1;
+                    tangent = Vector3.TransformNormal(tangent, worldTransform) * -1;
                 }
 
-                // Add Normal, BiTangent, and Tangents
-                newMesh.Normals.Add(vertex.Normal.ToAssimpVector3D());
-                newMesh.BiTangents.Add(vertex.Bitangent.ToAssimpVector3D());
-                newMesh.Tangents.Add(vertex.Tangent.ToAssimpVector3D());
+                // Add Position, Normal, Tangents, and BiTangent
+                newMesh.Vertices.Add(position.ToAssimpVector3D());
+                newMesh.Normals.Add(normal.ToAssimpVector3D());
+                newMesh.BiTangents.Add(bitangent.ToAssimpVector3D());
+                newMesh.Tangents.Add(tangent.ToAssimpVector3D());
 
                 // Add UVs
                 int uvCount = vertex.UVs.Count;
@@ -121,7 +141,7 @@ namespace FromAssimp
                     if (uvCount > i)
                     {
                         var uv = vertex.UVs[i];
-                        textureCoordinate = new Vector3D(uv.X, uv.Y, 0f);
+                        textureCoordinate = new Vector3D(uv.X, 1 - uv.Y, 0f);
                     }
                     else
                     {
@@ -133,7 +153,15 @@ namespace FromAssimp
                 // Each UV is only X and Y so set the component count to 2
                 for (int i = 0; i < newMesh.TextureCoordinateChannelCount; i++)
                 {
-                    newMesh.UVComponentCount[i] = 2;
+                    if (i < 4)
+                    {
+                        newMesh.UVComponentCount[i] = 2;
+                    }
+                    else
+                    {
+                        // There are only 4 channels for these models
+                        newMesh.UVComponentCount[i] = 0;
+                    }
                 }
 
                 // Add Colors

@@ -53,32 +53,45 @@ namespace FromAssimp
 
             for (int vertexIndex = 0; vertexIndex < vertices.Count; vertexIndex++)
             {
-                // Add Position and Normal
+                // Gather vertex information
                 var vertex = vertices[vertexIndex];
+                var position = vertex.Position;
+                var normal = new Vector3(vertex.Normal.X, vertex.Normal.Y, vertex.Normal.Z);
+                var normalW = vertex.NormalW;
+                var bitangent = new Vector3(vertex.Bitangent.X, vertex.Bitangent.Y, vertex.Bitangent.Z);
+                var tangents = new List<Vector3>(vertex.Tangents.Count);
+                foreach (var tangent in vertex.Tangents)
+                    tangents.Add(new Vector3(tangent.X, tangent.Y, tangent.Z));
+
+                // Gather transformation information
+                NumericsMatrix4x4 worldTransform = NumericsMatrix4x4.Identity;
+                int boneTransformationIndex = -1;
+                bool transformPosition = false;
                 if (hasBones && dynamic == 0)
                 {
-                    int boneIndex = boneIndices[vertex.NormalW];
-                    NumericsMatrix4x4.Invert(newBones[boneIndex].OffsetMatrix.ToNumericsMatrix4x4(), out NumericsMatrix4x4 worldTransform);
-                    newMesh.Vertices.Add(Vector3.Transform(vertex.Position, worldTransform).ToAssimpVector3D());
-                    newMesh.Normals.Add(vertex.Normal.ToAssimpVector3D()); // TODO: Figure out how to properly add normals
+                    transformPosition = true;
+                    boneTransformationIndex = boneIndices[vertex.NormalW];
 
-                    // If the bone map does not already have the bone add it
-                    if (!boneMap.ContainsKey(boneIndex))
+                    if (boneTransformationIndex > -1)
                     {
-                        var newBone = new Bone();
-                        newBone.Name = newBones[boneIndex].Name;
-                        newBone.OffsetMatrix = newBones[boneIndex].OffsetMatrix;
-                        boneMap.Add(boneIndex, newBone);
-                    }
+                        // If the bone map does not already have the bone add it
+                        if (!boneMap.ContainsKey(boneTransformationIndex))
+                        {
+                            var newBone = new Bone();
+                            newBone.Name = newBones[boneTransformationIndex].Name;
+                            newBone.OffsetMatrix = newBones[boneTransformationIndex].OffsetMatrix;
+                            boneMap.Add(boneTransformationIndex, newBone);
+                        }
 
-                    boneMap[boneIndex].VertexWeights.Add(new VertexWeight(vertexIndex, 1f));
+                        // Add bone weight
+                        boneMap[boneTransformationIndex].VertexWeights.Add(new VertexWeight(vertexIndex, 1f));
+                    }
                 }
                 else if (hasBones && dynamic == 1)
                 {
-                    newMesh.Vertices.Add(vertex.Position.ToAssimpVector3D());
-                    NumericsMatrix4x4.Invert(newBones[defaultBoneIndex].OffsetMatrix.ToNumericsMatrix4x4(), out NumericsMatrix4x4 worldTransform);
-                    newMesh.Normals.Add(vertex.Normal.ToAssimpVector3D()); // TODO: Figure out how to properly add normals
+                    boneTransformationIndex = defaultBoneIndex;
 
+                    // Add bone weights
                     for (int i = 0; i < 4; i++)
                     {
                         int boneIndex = vertex.BoneIndices[i];
@@ -103,28 +116,41 @@ namespace FromAssimp
                 }
                 else
                 {
-                    NumericsMatrix4x4.Invert(newBones[defaultBoneIndex].OffsetMatrix.ToNumericsMatrix4x4(), out NumericsMatrix4x4 worldTransform);
-                    newMesh.Vertices.Add(Vector3.Transform(vertex.Position, worldTransform).ToAssimpVector3D());
-                    newMesh.Normals.Add(vertex.Normal.ToAssimpVector3D()); // TODO: Figure out how to properly add normals
+                    transformPosition = true;
+                    boneTransformationIndex = defaultBoneIndex;
 
                     // If the bone map does not already have the bone add it
-                    if (!boneMap.ContainsKey(defaultBoneIndex))
+                    if (!boneMap.ContainsKey(boneTransformationIndex))
                     {
                         var newBone = new Bone();
-                        newBone.Name = newBones[defaultBoneIndex].Name;
-                        newBone.OffsetMatrix = newBones[defaultBoneIndex].OffsetMatrix;
-                        boneMap.Add(defaultBoneIndex, newBone);
+                        newBone.Name = newBones[boneTransformationIndex].Name;
+                        newBone.OffsetMatrix = newBones[boneTransformationIndex].OffsetMatrix;
+                        boneMap.Add(boneTransformationIndex, newBone);
                     }
 
-                    boneMap[defaultBoneIndex].VertexWeights.Add(new VertexWeight(vertexIndex, 1f));
+                    // Add bone weight
+                    boneMap[boneTransformationIndex].VertexWeights.Add(new VertexWeight(vertexIndex, 1f));
                 }
 
-                // Add BiTangent, and Tangents
-                newMesh.BiTangents.Add(vertex.Bitangent.ToAssimpVector3D());
-                foreach (var tangent in vertex.Tangents)
+                // Transform Position, Normal, Tangents, and BiTangent
+                if (boneTransformationIndex > -1)
                 {
-                    newMesh.Tangents.Add(tangent.ToAssimpVector3D());
+                    NumericsMatrix4x4.Invert(newBones[boneTransformationIndex].OffsetMatrix.ToNumericsMatrix4x4(), out worldTransform);
+                    if (transformPosition)
+                        position = Vector3.Transform(position, worldTransform);
+
+                    normal = Vector3.TransformNormal(normal, worldTransform) * -1;
+                    bitangent = Vector3.TransformNormal(bitangent, worldTransform) * -1;
+                    for (int i = 0; i < tangents.Count; i++)
+                        tangents[i] = Vector3.TransformNormal(tangents[i], worldTransform) * -1;
                 }
+
+                // Add Position, Normal, Tangents, and BiTangent
+                newMesh.Vertices.Add(position.ToAssimpVector3D());
+                newMesh.Normals.Add(normal.ToAssimpVector3D());
+                newMesh.BiTangents.Add(bitangent.ToAssimpVector3D());
+                for (int i = 0; i < tangents.Count; i++)
+                    newMesh.Tangents.Add(tangents[i].ToAssimpVector3D());
 
                 // Add UVs
                 int uvCount = vertex.UVs.Count;
@@ -134,7 +160,7 @@ namespace FromAssimp
                     if (uvCount > i)
                     {
                         var uv = vertex.UVs[i];
-                        textureCoordinate = new Vector3D(uv.X, uv.Y, 0f);
+                        textureCoordinate = new Vector3D(uv.X, 1 - uv.Y, 0f);
                     }
                     else
                     {
@@ -146,7 +172,15 @@ namespace FromAssimp
                 // Each UV is only X and Y so set the component count to 2
                 for (int i = 0; i < newMesh.TextureCoordinateChannelCount; i++)
                 {
-                    newMesh.UVComponentCount[i] = 2;
+                    if (i < 4)
+                    {
+                        newMesh.UVComponentCount[i] = 2;
+                    }
+                    else
+                    {
+                        // There are only 4 channels for these models
+                        newMesh.UVComponentCount[i] = 0;
+                    }
                 }
 
                 // Add Colors
