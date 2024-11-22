@@ -1,5 +1,8 @@
 ﻿using Assimp;
+using FromAssimp.Helpers;
 using SoulsFormats;
+using NumericsMatrix4x4 = System.Numerics.Matrix4x4;
+using AssimpMatrix4x4 = Assimp.Matrix4x4;
 
 namespace FromAssimp
 {
@@ -12,6 +15,11 @@ namespace FromAssimp
         /// The underlying <see cref="AssimpContext"/>.
         /// </summary>
         public AssimpContext Context { get; set; }
+
+        /// <summary>
+        /// Whether or not to do the check flip fix during FLVER0 face triangulation.
+        /// </summary>
+        public bool DoCheckFlip { get; set; }
 
         /// <summary>
         /// Whether or not the underlying <see cref="AssimpContext"/> has been disposed.
@@ -67,19 +75,13 @@ namespace FromAssimp
         /// <returns>A <see cref="Scene"/>.</returns>
         public Scene ImportFileFromStream(Stream stream, PostProcessSteps postProcessFlags = PostProcessSteps.None)
         {
-            byte[] bytes;
-            using var ms = new MemoryStream();
-            stream.CopyTo(ms);
-            ms.Seek(0, SeekOrigin.Begin);
-            bytes = ms.ToArray();
-
-            if (MDL4.IsRead(bytes, out MDL4 mdl4))
+            if (MDL4.IsRead(stream, out MDL4 mdl4))
                 return mdl4.ToAssimpScene();
-            else if (SMD4.IsRead(bytes, out SMD4 smd4))
+            else if (SMD4.IsRead(stream, out SMD4 smd4))
                 return smd4.ToAssimpScene();
-            else if (FLVER0.IsRead(bytes, out FLVER0 flver0))
+            else if (FLVER0.IsRead(stream, out FLVER0 flver0))
                 return flver0.ToAssimpScene();
-            else if (FLVER2.IsRead(bytes, out FLVER2 flver2))
+            else if (FLVER2.IsRead(stream, out FLVER2 flver2))
                 return flver2.ToAssimpScene();
             
             return Context.ImportFileFromStream(stream, postProcessFlags);
@@ -119,7 +121,7 @@ namespace FromAssimp
             else if (model is FLVER2 flver2)
                 return flver2.ToAssimpScene();
 
-            throw new NotSupportedException($"The type {model.GetType()} using the {nameof(IFlver)} interface is not supported for {nameof(ImportFileFromIFlver)}");
+            throw new NotSupportedException($"The type {model.GetType().Name} using the {nameof(IFlver)} interface is not supported for {nameof(ImportFileFromIFlver)}");
         }
 
         /// <summary>
@@ -127,9 +129,11 @@ namespace FromAssimp
         /// </summary>
         /// <param name="model">The model to import from.</param>
         /// <returns>A <see cref="Scene"/>.</returns>
-        public static Scene ImportFileFromFlver0(FLVER0 model)
+        public Scene ImportFileFromFlver0(FLVER0 model)
         {
-            return model.ToAssimpScene();
+            var scene = FlverTest.TestFlver0(model, DoCheckFlip, true, FlverTest.MirrorX);
+            //SceneHelper.DebugPrintSceneInfo(scene);
+            return scene;
         }
 
         /// <summary>
@@ -139,7 +143,9 @@ namespace FromAssimp
         /// <returns>A <see cref="Scene"/>.</returns>
         public static Scene ImportFileFromFlver2(FLVER2 model)
         {
-            return model.ToAssimpScene();
+            var scene = model.ToAssimpScene();
+            //SceneHelper.DebugPrintSceneInfo(scene);
+            return scene;
         }
 
         /// <summary>

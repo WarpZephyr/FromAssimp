@@ -56,5 +56,20 @@ namespace FromAssimp.Extensions.Numerics
             vector = Vector4.Transform(vector, transform);
             return new Vector3D(vector.X, vector.Y, vector.Z);
         }
+
+        public static Vector3 NegateX(this Vector3 vector)
+        {
+            return new Vector3(-vector.X, vector.Y, vector.Z);
+        }
+
+        public static Vector3 NegateY(this Vector3 vector)
+        {
+            return new Vector3(vector.X, -vector.Y, vector.Z);
+        }
+
+        public static Vector3 NegateZ(this Vector3 vector)
+        {
+            return new Vector3(vector.X, vector.Y, -vector.Z);
+        }
     }
 }

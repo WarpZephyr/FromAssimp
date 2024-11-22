@@ -122,9 +122,9 @@ namespace FromAssimp
                     if (transformPosition)
                         position = Vector3.Transform(position, worldTransform);
 
-                    normal = Vector3.TransformNormal(normal, worldTransform) * -1;
-                    bitangent = Vector3.TransformNormal(bitangent, worldTransform) * -1;
-                    tangent = Vector3.TransformNormal(tangent, worldTransform) * -1;
+                    normal = Vector3.TransformNormal(normal, worldTransform);
+                    bitangent = Vector3.TransformNormal(bitangent, worldTransform);
+                    tangent = Vector3.TransformNormal(tangent, worldTransform);
                 }
 
                 // Add Position, Normal, Tangents, and BiTangent
@@ -180,10 +180,10 @@ namespace FromAssimp
                 var newMesh = new Mesh($"Mesh_M{meshIndex}", PrimitiveType.Triangle);
 
                 // Collect faces
-                var faceIndices = mesh.GetFaceIndices();
-                foreach (int[] indices in faceIndices)
+                var faceIndices = mesh.GetFaceIndices(true, true);
+                foreach (ushort[] indices in faceIndices)
                 {
-                    newMesh.Faces.Add(new Face(indices));
+                    newMesh.Faces.Add(new Face([indices[2], indices[1], indices[0]]));
                 }
 
                 CollectVertices(mesh.Vertices, newMesh, mesh.BoneIndices.ToIntArray(), newBones, mesh.VertexFormat, out Dictionary<int, Bone> boneMap);

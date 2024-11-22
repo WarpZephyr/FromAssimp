@@ -7,10 +7,10 @@ namespace FromAssimp.Extensions.Numerics
     public static class MatrixExtensions
     {
         /// <summary>
-        /// Convert a System.Numerics.NumericsMatrix4x4 into an AssimpMatrix4x4.
+        /// Convert a <see cref="NumericsMatrix4x4"/> into an <see cref="AssimpMatrix4x4"/>.
         /// </summary>
-        /// <param name="mat4">A System.Numerics.NumericsMatrix4x4.</param>
-        /// <returns>An AssimpMatrix4x4.</returns>
+        /// <param name="mat4">A <see cref="NumericsMatrix4x4"/>.</param>
+        /// <returns>An <see cref="AssimpMatrix4x4"/>.</returns>
         public static AssimpMatrix4x4 ToAssimpMatrix4x4(this NumericsMatrix4x4 mat4)
         {
             return new AssimpMatrix4x4(mat4.M11, mat4.M21, mat4.M31, mat4.M41,
