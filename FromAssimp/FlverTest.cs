@@ -40,6 +40,9 @@ namespace FromAssimp
             }
 
             // Add bone nodes
+            // In Assimp every bone needs a node with the same name
+            // To have bones transform properly you need to set the transform of the bone relative to its parent in the node's Transform.
+            // This is also known as the local transform.
             var boneRootNode = rootNode;
             Node[] newBoneNodes = new Node[model.Bones.Count];
             for (int boneIndex = 0; boneIndex < model.Bones.Count; boneIndex++)
@@ -61,6 +64,9 @@ namespace FromAssimp
             }
 
             // Get full bone transforms
+            // These will be a full world transform for every bone
+            // These will be used to transform vertices that aren't already in bind pose,
+            // As well as be used in Assimp Bone OffsetMatrix values.
             NumericsMatrix4x4[] transforms = new NumericsMatrix4x4[model.Bones.Count];
             void GetTransforms(int index, NumericsMatrix4x4 parentTransform)
             {
@@ -68,27 +74,36 @@ namespace FromAssimp
                 {
                     var bone = model.Bones[index];
                     var localTransform = bone.ComputeLocalTransform();
-                    var transform = localTransform * parentTransform;
-                    transforms[index] = transform;
+                    var transform = localTransform * parentTransform; // Get world
+                    transforms[index] = transform; // Store world
+
+                    // Move onto this bone's next sibling
                     GetTransforms(bone.NextSiblingIndex, parentTransform);
+
+                    // Move onto this bone's children
                     GetTransforms(bone.ChildIndex, transform);
                 }
             }
 
+            // Go from the top of the hiearchy down, enabling getting world transforms for every bone only once
             for (int boneIndex = 0; boneIndex < model.Bones.Count; boneIndex++)
             {
                 var bone = model.Bones[boneIndex];
-                if (bone.ParentIndex != -1)
+                if (bone.ParentIndex != -1) // Skip bones that have parents
                     continue;
 
                 var transform = bone.ComputeLocalTransform();
                 var finalTransform = transform * userTransform; // Add in our transformations
+                transforms[boneIndex] = finalTransform; // Store world
 
-                transforms[boneIndex] = finalTransform;
+                // Move onto this bone's children
                 GetTransforms(bone.ChildIndex, finalTransform);
             }
 
             // Get inverse transforms
+            // Used for the offset matrix in bones stored in meshes for assimp
+            // Assimp stores bone references per mesh, along with the weights of vertices this bone affects in that mesh
+            // This means you will need to duplicate bone references per mesh, because they cannot share the same vertex IDs
             AssimpMatrix4x4[] offsetTransforms = new AssimpMatrix4x4[model.Bones.Count];
             for (int boneIndex = 0; boneIndex < model.Bones.Count; boneIndex++)
             {
@@ -101,6 +116,8 @@ namespace FromAssimp
             Span<int> boneIndicesAlloc = stackalloc int[4];
             Span<float> boneWeightsAlloc = stackalloc float[4];
 
+            // Store what bones are referenced for later
+            // This is so we know which ones aren't referenced and can make a decision on whether or not to export them
             HashSet<int> referencedBoneIndices = [];
 
             // Add meshes
@@ -117,6 +134,7 @@ namespace FromAssimp
                 List<int> faces = mesh.Triangulate(model.Header.Version, doCheckFlip, true);
                 for (int faceIndex = 0; faceIndex < faces.Count - 2; faceIndex += 3)
                 {
+                    // Flip winding order if mirroring
                     if (mirroring)
                     {
                         newMesh.Faces.Add(new Face([faces[faceIndex], faces[faceIndex + 1], faces[faceIndex + 2]]));
@@ -128,6 +146,7 @@ namespace FromAssimp
                 }
 
                 // Get info
+                // This is so we know what to export for each vertex ahead of time
                 var layout = model.Materials[mesh.MaterialIndex].Layouts[mesh.LayoutIndex];
                 bool isStatic = mesh.Dynamic == 0;
                 bool hasPosition = false;
@@ -141,9 +160,9 @@ namespace FromAssimp
                 bool hasBoneIndices = false;
                 bool hasBoneWeights = false;
                 bool hasDefaultBoneIndex = mesh.DefaultBoneIndex > -1 && mesh.DefaultBoneIndex < model.Bones.Count;
-                int tangentCount = 0;
-                int uvCount = 0;
-                int colorCount = 0;
+                int tangentCount = 0; // Not used at the moment
+                int uvCount = 0; // Not used at the moment
+                int colorCount = 0; // Not used at the moment
                 var meshBoneIndices = mesh.BoneIndices;
                 var defaultBoneIndex = mesh.DefaultBoneIndex;
                 foreach (var member in layout)
@@ -214,8 +233,8 @@ namespace FromAssimp
                     var boneIndices = vertex.BoneIndices;
                     var boneWeights = vertex.BoneWeights;
                     bool validNormalW = usesNormalW &&
-                        normalW > -1 && normalW < meshBoneIndices.Length &&
-                        meshBoneIndices[normalW] > -1 && meshBoneIndices[normalW] < model.Bones.Count;
+                        normalW > -1 && normalW < meshBoneIndices.Length && // Make sure mesh bone index is valid
+                        meshBoneIndices[normalW] > -1 && meshBoneIndices[normalW] < model.Bones.Count; // Make sure bone index is valid
 
                     // Transform elements
                     if (doTransform)
@@ -226,8 +245,8 @@ namespace FromAssimp
                             boneTransformIndex = meshBoneIndices[normalW];
                         }
                         else if (doIndexNoWeightTransform &&
-                            boneIndices[0] > -1 && boneIndices[0] < meshBoneIndices.Length &&
-                            meshBoneIndices[boneIndices[0]] > -1 && meshBoneIndices[boneIndices[0]] < model.Bones.Count)
+                            boneIndices[0] > -1 && boneIndices[0] < meshBoneIndices.Length && // Make sure mesh bone index is valid
+                            meshBoneIndices[boneIndices[0]] > -1 && meshBoneIndices[boneIndices[0]] < model.Bones.Count) // Make sure bone index is valid
                         {
                             boneTransformIndex = meshBoneIndices[boneIndices[0]];
                         }
@@ -236,7 +255,7 @@ namespace FromAssimp
                             boneTransformIndex = defaultBoneIndex;
                         }
 
-                        // Bone index valid
+                        // Bone index found and valid
                         if (boneTransformIndex > -1)
                         {
                             var transform = transforms[boneTransformIndex];
@@ -314,6 +333,9 @@ namespace FromAssimp
                     {
                         var lastMeshBoneIndex = -1;
                         int boneCount = 0;
+
+                        // Keep adding bone indices until we hit bone indices that go back
+                        // TODO: This might be invalid, I suppose bone weights being 0 will invalidate unused extra indices anyways
                         for (int i = 0; i < 4; i++)
                         {
                             var meshBoneIndex = boneIndices[i];
@@ -370,13 +392,16 @@ namespace FromAssimp
                     }
 
                     // Is a local function to allow for recursion and easier to read code
-                    // Needs to add parent bones that no vertices ever reference themselves
+                    // Needed to add parent bones that no vertices ever reference themselves
                     Bone AddMeshBone(int boneIndex)
                     {
-                        var bone = model.Bones[boneIndex];
-                        var offsetTransform = offsetTransforms[boneIndex];
+                        // Add the bone if we couldn't find it
                         if (!meshBoneMap.TryGetValue(boneIndex, out Bone? meshBone))
                         {
+                            var bone = model.Bones[boneIndex];
+                            var offsetTransform = offsetTransforms[boneIndex];
+
+                            // The name of an assimp mesh bone must be the same as an existing Node added in the scene node tree
                             meshBone = new Bone
                             {
                                 Name = bone.Name,
@@ -387,6 +412,7 @@ namespace FromAssimp
                             meshBoneMap.Add(boneIndex, meshBone);
                             referencedBoneIndices.Add(boneIndex);
 
+                            // Add this bone's parents
                             if (bone.ParentIndex > -1)
                                 AddMeshBone(bone.ParentIndex);
                         }
@@ -401,6 +427,7 @@ namespace FromAssimp
                         float boneWeight = boneWeightsAlloc[i];
                         if (boneIndex > -1 && boneIndex < model.Bones.Count && boneWeight > 0f)
                         {
+                            // Add a mesh bone and all it's parents, or find an existing one we already added
                             var meshBone = AddMeshBone(boneIndex);
                             meshBone.VertexWeights.Add(new VertexWeight(vertexIndex, boneWeight));
                         }
@@ -416,18 +443,6 @@ namespace FromAssimp
                 parentNode.Children.Add(newMeshNode);
             }
 
-            // Prevent crashing when there are meshes but no materials
-            if (scene.MeshCount > 0 && scene.MaterialCount < 1)
-            {
-                var newMaterial = new Material();
-                newMaterial.Name = "ASSIMP_PLACEHOLDER_MATERIAL";
-                scene.Materials.Add(newMaterial);
-                foreach (var mesh in scene.Meshes)
-                {
-                    mesh.MaterialIndex = 0;
-                }
-            }
-
             // Find unused bones
             var unusedBoneIndices = new List<int>();
             for (int i = 0; i < model.Bones.Count; i++)
@@ -436,7 +451,7 @@ namespace FromAssimp
                     unusedBoneIndices.Add(i);
             }
 
-            // Add unused bones
+            // Add unused bones into unused bones mesh
             if (unusedBoneIndices.Count > 0)
             {
                 Mesh unusedBonesMesh = new Mesh("UnusedBonesMesh");
@@ -450,6 +465,18 @@ namespace FromAssimp
 
                 meshRootNode.Children.Add(unusedMeshNode);
                 scene.Meshes.Add(unusedBonesMesh);
+            }
+
+            // Prevent crashing when there are meshes but no materials
+            if (scene.MeshCount > 0 && scene.MaterialCount < 1)
+            {
+                var newMaterial = new Material();
+                newMaterial.Name = "ASSIMP_PLACEHOLDER_MATERIAL";
+                scene.Materials.Add(newMaterial);
+                foreach (var mesh in scene.Meshes)
+                {
+                    mesh.MaterialIndex = 0;
+                }
             }
 
             return scene;
