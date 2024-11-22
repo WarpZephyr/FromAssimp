@@ -455,7 +455,9 @@ namespace FromAssimp
             if (unusedBoneIndices.Count > 0)
             {
                 Mesh unusedBonesMesh = new Mesh("UnusedBonesMesh");
-                Node unusedMeshNode = new Node("UnusedBonesMesh", meshRootNode);
+                Node unusedBonesMeshNode = new Node("UnusedBonesMeshNode", meshRootNode);
+                Material unusedBonesMeshMaterial = new Material();
+                unusedBonesMeshMaterial.Name = "UnusedBonesMeshMaterial";
 
                 foreach (var boneIndex in unusedBoneIndices)
                 {
@@ -463,20 +465,12 @@ namespace FromAssimp
                     unusedBonesMesh.Bones.Add(newBone);
                 }
 
-                meshRootNode.Children.Add(unusedMeshNode);
+                // Count now will be last index once added
+                unusedBonesMesh.MaterialIndex = scene.MaterialCount;
+                unusedBonesMeshNode.MeshIndices.Add(scene.MeshCount);
+                meshRootNode.Children.Add(unusedBonesMeshNode);
+                scene.Materials.Add(unusedBonesMeshMaterial);
                 scene.Meshes.Add(unusedBonesMesh);
-            }
-
-            // Prevent crashing when there are meshes but no materials
-            if (scene.MeshCount > 0 && scene.MaterialCount < 1)
-            {
-                var newMaterial = new Material();
-                newMaterial.Name = "ASSIMP_PLACEHOLDER_MATERIAL";
-                scene.Materials.Add(newMaterial);
-                foreach (var mesh in scene.Meshes)
-                {
-                    mesh.MaterialIndex = 0;
-                }
             }
 
             return scene;
