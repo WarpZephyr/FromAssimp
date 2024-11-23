@@ -1,40 +1,12 @@
 ﻿using Assimp;
-using FromAssimp.Extensions.Assimp;
+using FromAssimp.Extensions;
 using System.Text;
 using NumericsMatrix4x4 = System.Numerics.Matrix4x4;
 
 namespace FromAssimp.Helpers
 {
-    internal static class SceneHelper
+    internal static class DebugSceneHelper
     {
-        internal static void AddPlaceHolderMesh(Scene scene, Node meshesRootNode)
-        {
-            int index = scene.MeshCount;
-            string newMeshName = $"ASSIMP_MESH_PLACEHOLDER_{index}";
-            Node newMeshNode = new Node(newMeshName, meshesRootNode);
-            newMeshNode.Transform = Matrix4x4.Identity;
-            newMeshNode.MeshIndices.Add(index);
-            meshesRootNode.Children.Add(newMeshNode);
-
-            if (scene.MaterialCount == 0)
-            {
-                AddPlaceHolderMaterial(scene);
-            }
-
-            Mesh newMesh = new Mesh(newMeshName, PrimitiveType.Triangle);
-            newMesh.MaterialIndex = 0;
-            scene.Meshes.Add(newMesh);
-        }
-
-        internal static void AddPlaceHolderMaterial(Scene scene)
-        {
-            Material newMaterial = new()
-            {
-                Name = "default"
-            };
-            scene.Materials.Add(newMaterial);
-        }
-
         internal static void DebugPrintSceneInfo(Scene scene)
         {
             // Counts

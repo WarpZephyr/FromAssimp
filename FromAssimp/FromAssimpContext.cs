@@ -1,7 +1,8 @@
 ﻿using Assimp;
-using FromAssimp.Helpers;
 using SoulsFormats;
-using FromAssimp.Extensions.Numerics;
+using FromAssimp.Import;
+using FromAssimp.Helpers;
+using FromAssimp.Extensions;
 
 namespace FromAssimp
 {
@@ -179,7 +180,7 @@ namespace FromAssimp
         /// <returns>A <see cref="Scene"/>.</returns>
         public Scene ImportFileFromFlver2(FLVER2 model)
         {
-            return model.ToAssimpScene();
+            return FlverImporter.ImportFlver2(model);
         }
 
         /// <summary>
@@ -189,7 +190,7 @@ namespace FromAssimp
         /// <returns>A <see cref="Scene"/>.</returns>
         public Scene ImportFileFromMdl4(MDL4 model)
         {
-            return model.ToAssimpScene();
+            return Mdl4Importer.ImportMdl4(model);
         }
 
         /// <summary>
@@ -199,7 +200,7 @@ namespace FromAssimp
         /// <returns>A <see cref="Scene"/>.</returns>
         public Scene ImportFileFromSmd4(SMD4 model)
         {
-            return model.ToAssimpScene();
+            return Smd4Importer.ImportSmd4(model);
         }
 
         /// <summary>
@@ -246,7 +247,7 @@ namespace FromAssimp
                 MirrorHelper.MirrorScene(scene, mirror);
             }
 
-            return Context.ExportFile(scene, path, exportFormatId, preProcessing);
+            return Context.ExportFile(scene, path, exportFormatId);
         }
 
         /// <summary>
