@@ -118,10 +118,10 @@ namespace FromAssimp
                 var newMesh = new Mesh($"Mesh_M{meshIndex}", PrimitiveType.Triangle);
 
                 // Collect faces
-                var faceIndices = mesh.GetFaceIndices();
-                foreach (int[] indices in faceIndices)
+                var faceIndices = mesh.GetFaceIndices(true, true);
+                foreach (ushort[] indices in faceIndices)
                 {
-                    newMesh.Faces.Add(new Face(indices));
+                    newMesh.Faces.Add(new Face(new int [] { indices[2], indices[1], indices[0] }));
                 }
 
                 CollectVertices(mesh.Vertices, newMesh, mesh.BoneIndices.ToIntArray(), newBones, mesh.VertexFormat, out Dictionary<int, Bone> boneMap);
@@ -145,7 +145,6 @@ namespace FromAssimp
 
                 meshNode.Transform = AssimpMatrix4x4.Identity;
                 meshNode.MeshIndices.Add(meshIndex);
-                newMesh.MaterialIndex = mesh.MaterialIndex;
 
                 scene.RootNode.Children.Add(meshNode);
                 scene.Meshes.Add(newMesh);

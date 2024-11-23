@@ -6,6 +6,7 @@ using FromAssimp.Extensions.Numerics;
 using FromAssimp.Extensions.Common;
 using FromAssimp.Extensions.Assimp;
 using System.Numerics;
+using FromAssimp.Helpers;
 
 namespace FromAssimp
 {
@@ -140,6 +141,7 @@ namespace FromAssimp
                         position = Vector3.Transform(position, worldTransform);
 
                     normal = Vector3.TransformNormal(normal, worldTransform) * -1;
+                    
                     bitangent = Vector3.TransformNormal(bitangent, worldTransform) * -1;
                     for (int i = 0; i < tangents.Count; i++)
                         tangents[i] = Vector3.TransformNormal(tangents[i], worldTransform) * -1;
@@ -196,25 +198,29 @@ namespace FromAssimp
             }
         }
 
-        private static void CollectMeshes(Scene scene, FLVER0 model, Bone[] newBones, out int[] consumedBoneIndices)
+        private static void CollectMeshes(Scene scene, Node meshesRootNode, FLVER0 model, Bone[] newBones, HashSet<int> consumedBoneIndices)
         {
-            List<int> consumedBoneIndicesList = new List<int>(model.Bones.Count);
+            bool includeDegenerateFaces = model.Header.Version >= 0x12 && model.Header.Version <= 0x14;
             for (int meshIndex = 0; meshIndex < model.Meshes.Count; meshIndex++)
             {
                 var mesh = model.Meshes[meshIndex];
-                var meshNode = new Node($"Mesh_{meshIndex}", scene.RootNode);
-                var newMesh = new Mesh($"Mesh_M{meshIndex}", PrimitiveType.Triangle);
+                var meshNode = new Node($"Mesh_{meshIndex}", meshesRootNode);
+                var newMesh = new Mesh($"Mesh_{meshIndex}", PrimitiveType.Triangle);
 
                 // Collect Faces
-                var faceIndices = mesh.GetFaceIndices(model.Header.Version);
+                var faceIndices = mesh.GetFaceIndices(model.Header.Version, false, includeDegenerateFaces);
                 foreach (int[] indices in faceIndices)
                 {
+                    Array.Reverse(indices);
                     newMesh.Faces.Add(new Face(indices));
                 }
 
                 CollectVertices(mesh.Vertices, newMesh, mesh.BoneIndices.ToIntArray(), newBones, mesh.Dynamic, mesh.DefaultBoneIndex, out Dictionary<int, Bone> boneMap);
                 newMesh.Bones.AddRange(boneMap.Values);
-                consumedBoneIndicesList.AddRange(boneMap.Keys);
+                foreach (int boneIndex in boneMap.Keys)
+                {
+                    consumedBoneIndices.Add(boneIndex);
+                }
 
                 // Collect Bones referenced in this mesh, but not in it's vertices.
                 for (int i = 0; i < mesh.BoneIndices.Length; i++)
@@ -224,8 +230,8 @@ namespace FromAssimp
                     {
                         var bone = model.Bones[boneIndex];
                         NumericsMatrix4x4.Invert(bone.ComputeWorldTransform(model.Bones), out NumericsMatrix4x4 inverseWorldTransform);
-                        newMesh.Bones.Add(new Bone(bone.Name, inverseWorldTransform.ToAssimpMatrix4x4(), Array.Empty<VertexWeight>()));
-                        consumedBoneIndicesList.Add(boneIndex);
+                        newMesh.Bones.Add(new Bone(bone.Name, inverseWorldTransform.ToAssimpMatrix4x4(), []));
+                        consumedBoneIndices.Add(boneIndex);
                     }
                 }
 
@@ -233,20 +239,18 @@ namespace FromAssimp
                 meshNode.MeshIndices.Add(meshIndex);
                 newMesh.MaterialIndex = mesh.MaterialIndex;
 
-                scene.RootNode.Children.Add(meshNode);
+                meshesRootNode.Children.Add(meshNode);
                 scene.Meshes.Add(newMesh);
             }
-            consumedBoneIndices = consumedBoneIndicesList.ToArray();
         }
 
-        private static void CollectMeshes(Scene scene, FLVER2 model, Bone[] newBones, out int[] consumedBoneIndices)
+        private static void CollectMeshes(Scene scene, Node meshesRootNode, FLVER2 model, Bone[] newBones, HashSet<int> consumedBoneIndices)
         {
-            List<int> consumedBoneIndicesList = new List<int>(model.Bones.Count);
             for (int meshIndex = 0; meshIndex < model.Meshes.Count; meshIndex++)
             {
                 var mesh = model.Meshes[meshIndex];
-                var meshNode = new Node($"Mesh_{meshIndex}", scene.RootNode);
-                var newMesh = new Mesh($"Mesh_M{meshIndex}", PrimitiveType.Triangle);
+                var meshNode = new Node($"Mesh_{meshIndex}", meshesRootNode);
+                var newMesh = new Mesh($"Mesh_{meshIndex}", PrimitiveType.Triangle);
 
                 // Collect Faces
                 foreach (var faceset in mesh.FaceSets)
@@ -254,7 +258,7 @@ namespace FromAssimp
                     var indices = faceset.Triangulate(mesh.Vertices.Count < ushort.MaxValue);
                     for (int i = 0; i < indices.Count - 2; i += 3)
                     {
-                        newMesh.Faces.Add(new Face(new int[] { indices[i], indices[i + 1], indices[i + 2] }));
+                        newMesh.Faces.Add(new Face([indices[i + 2], indices[i + 1], indices[i]]));
                     }
                 }
 
@@ -265,10 +269,11 @@ namespace FromAssimp
                 }
 
                 CollectVertices(mesh.Vertices, newMesh, mesh.BoneIndices, newBones, mesh.Dynamic, mesh.DefaultBoneIndex, out Dictionary<int, Bone> boneMap);
-
-                // Add Bone references holding bone weights to the mesh
                 newMesh.Bones.AddRange(boneMap.Values);
-                consumedBoneIndicesList.AddRange(boneMap.Keys);
+                foreach (int boneIndex in boneMap.Keys)
+                {
+                    consumedBoneIndices.Add(boneIndex);
+                }
 
                 // Collect Bones referenced in this mesh, but not in it's vertices.
                 for (int i = 0; i < mesh.BoneIndices.Count; i++)
@@ -279,7 +284,7 @@ namespace FromAssimp
                         var bone = model.Bones[boneIndex];
                         NumericsMatrix4x4.Invert(bone.ComputeWorldTransform(model.Bones), out NumericsMatrix4x4 inverseWorldTransform);
                         newMesh.Bones.Add(new Bone(bone.Name, inverseWorldTransform.ToAssimpMatrix4x4(), Array.Empty<VertexWeight>()));
-                        consumedBoneIndicesList.Add(boneIndex);
+                        consumedBoneIndices.Add(boneIndex);
                     }
                 }
 
@@ -287,35 +292,36 @@ namespace FromAssimp
                 meshNode.MeshIndices.Add(meshIndex);
                 newMesh.MaterialIndex = mesh.MaterialIndex;
 
-                scene.RootNode.Children.Add(meshNode);
+                meshesRootNode.Children.Add(meshNode);
                 scene.Meshes.Add(newMesh);
             }
-            consumedBoneIndices = consumedBoneIndicesList.ToArray();
         }
 
         public static Scene ToAssimpScene(this IFlver model)
         {
             var scene = new Scene();
-            scene.RootNode = new Node();
+            scene.RootNode = new Node("Root");
 
             // Collect Materials
             foreach (var material in model.Materials)
             {
-                Material newMaterial = new Material();
-                newMaterial.Name = material.Name;
+                Material newMaterial = new Material
+                {
+                    Name = material.Name
+                };
                 scene.Materials.Add(newMaterial);
             }
 
             CollectBones(scene.RootNode, model.Bones, out Bone[] newBones);
 
-            int[] consumedBoneIndices = Array.Empty<int>();
+            HashSet<int> consumedBoneIndices = [];
             if (model is FLVER0 flver0)
             {
-                CollectMeshes(scene, flver0, newBones, out consumedBoneIndices);
+                CollectMeshes(scene, scene.RootNode, flver0, newBones, consumedBoneIndices);
             }
             else if (model is FLVER2 flver2)
             {
-                CollectMeshes(scene, flver2, newBones, out consumedBoneIndices);
+                CollectMeshes(scene, scene.RootNode, flver2, newBones, consumedBoneIndices);
             }
 
             // Collect Bones not referenced in Meshes or Vertices.
@@ -326,26 +332,10 @@ namespace FromAssimp
                     var bone = model.Bones[i];
                     NumericsMatrix4x4.Invert(bone.ComputeWorldTransform(model.Bones), out NumericsMatrix4x4 inverseWorldTransform);
 
+                    // Add mesh if there isn't one
                     if (scene.MeshCount == 0)
                     {
-                        string newMeshName = "ASSIMP_MESH_PLACEHOLDER";
-                        Node newMeshNode = new Node(newMeshName, scene.RootNode);
-                        newMeshNode.Transform = AssimpMatrix4x4.Identity;
-                        newMeshNode.MeshIndices.Add(0);
-                        scene.RootNode.Children.Add(newMeshNode);
-
-                        if (scene.MaterialCount == 0)
-                        {
-                            Material newMaterial = new()
-                            {
-                                Name = "default"
-                            };
-                            scene.Materials.Add(newMaterial);
-                        }
-
-                        Mesh newMesh = new Mesh(newMeshName, PrimitiveType.Triangle);
-                        newMesh.MaterialIndex = 0;
-                        scene.Meshes.Add(newMesh);
+                        SceneHelper.AddPlaceHolderMesh(scene, scene.RootNode);
                     }
 
                     scene.Meshes[0].Bones.Add(new Bone(bone.Name, inverseWorldTransform.ToAssimpMatrix4x4(), Array.Empty<VertexWeight>()));
