@@ -121,7 +121,7 @@ namespace FromAssimp
                 var faceIndices = mesh.GetFaceIndices(true, true);
                 foreach (ushort[] indices in faceIndices)
                 {
-                    newMesh.Faces.Add(new Face(new int [] { indices[0], indices[1], indices[2] }));
+                    newMesh.Faces.Add(new Face(new int [] { indices[2], indices[1], indices[0] }));
                 }
 
                 CollectVertices(mesh.Vertices, newMesh, mesh.BoneIndices.ToIntArray(), newBones, mesh.VertexFormat, out Dictionary<int, Bone> boneMap);

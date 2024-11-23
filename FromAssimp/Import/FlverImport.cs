@@ -211,6 +211,7 @@ namespace FromAssimp
                 var faceIndices = mesh.GetFaceIndices(model.Header.Version, false, includeDegenerateFaces);
                 foreach (int[] indices in faceIndices)
                 {
+                    Array.Reverse(indices);
                     newMesh.Faces.Add(new Face(indices));
                 }
 
@@ -257,7 +258,7 @@ namespace FromAssimp
                     var indices = faceset.Triangulate(mesh.Vertices.Count < ushort.MaxValue);
                     for (int i = 0; i < indices.Count - 2; i += 3)
                     {
-                        newMesh.Faces.Add(new Face([indices[i], indices[i + 1], indices[i + 2]]));
+                        newMesh.Faces.Add(new Face([indices[i + 2], indices[i + 1], indices[i]]));
                     }
                 }
 

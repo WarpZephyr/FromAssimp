@@ -8,24 +8,9 @@ using System.Numerics;
 
 namespace FromAssimp
 {
-    internal static class FlverTest
+    internal static class FlverImporter
     {
-        public static NumericsMatrix4x4 MirrorX = new NumericsMatrix4x4(-1, 0, 0, 0,
-                                                                        0, 1, 0, 0,
-                                                                        0, 0, 1, 0,
-                                                                        0, 0, 0, 1);
-
-        public static NumericsMatrix4x4 MirrorY = new NumericsMatrix4x4(1, 0, 0, 0,
-                                                                        0, -1, 0, 0,
-                                                                        0, 0, 1, 0,
-                                                                        0, 0, 0, 1);
-
-        public static NumericsMatrix4x4 MirrorZ = new NumericsMatrix4x4(1, 0, 0, 0,
-                                                                        0, 1, 0, 0,
-                                                                        0, 0, -1, 0,
-                                                                        0, 0, 0, 1);
-
-        public static Scene TestFlver0(FLVER0 model, bool doCheckFlip, bool mirroring, NumericsMatrix4x4 userTransform)
+        public static Scene ImportFlver0(FLVER0 model, bool doCheckFlip)
         {
             var scene = new Scene();
             var rootNode = new Node("Root");
@@ -45,18 +30,14 @@ namespace FromAssimp
             // This is also known as the local transform.
             var boneRootNode = rootNode;
             Node[] newBoneNodes = new Node[model.Bones.Count];
+            NumericsMatrix4x4[] localTransforms = new NumericsMatrix4x4[model.Bones.Count];
             for (int boneIndex = 0; boneIndex < model.Bones.Count; boneIndex++)
             {
                 var bone = model.Bones[boneIndex];
                 var localTransform = bone.ComputeLocalTransform();
                 Node parentNode = bone.ParentIndex > -1 ? newBoneNodes[bone.ParentIndex] : boneRootNode;
 
-                // Perform our transformations on the root bones only
-                if (bone.ParentIndex == -1)
-                {
-                    localTransform *= userTransform;
-                }
-
+                localTransforms[boneIndex] = localTransform;
                 var newBoneNode = new Node(bone.Name, parentNode);
                 newBoneNode.Transform = localTransform.ToAssimpMatrix4x4();
                 newBoneNodes[boneIndex] = newBoneNode;
@@ -73,7 +54,7 @@ namespace FromAssimp
                 if (index > -1)
                 {
                     var bone = model.Bones[index];
-                    var localTransform = bone.ComputeLocalTransform();
+                    var localTransform = localTransforms[index];
                     var transform = localTransform * parentTransform; // Get world
                     transforms[index] = transform; // Store world
 
@@ -92,12 +73,11 @@ namespace FromAssimp
                 if (bone.ParentIndex != -1) // Skip bones that have parents
                     continue;
 
-                var transform = bone.ComputeLocalTransform();
-                var finalTransform = transform * userTransform; // Add in our transformations
-                transforms[boneIndex] = finalTransform; // Store world
+                var transform = localTransforms[boneIndex];
+                transforms[boneIndex] = transform; // Store world
 
                 // Move onto this bone's children
-                GetTransforms(bone.ChildIndex, finalTransform);
+                GetTransforms(bone.ChildIndex, transform);
             }
 
             // Get inverse transforms
@@ -134,15 +114,7 @@ namespace FromAssimp
                 List<int> faces = mesh.Triangulate(model.Header.Version, doCheckFlip, true);
                 for (int faceIndex = 0; faceIndex < faces.Count - 2; faceIndex += 3)
                 {
-                    // Flip winding order if mirroring
-                    if (mirroring)
-                    {
-                        newMesh.Faces.Add(new Face([faces[faceIndex], faces[faceIndex + 1], faces[faceIndex + 2]]));
-                    }
-                    else
-                    {
-                        newMesh.Faces.Add(new Face([faces[faceIndex + 2], faces[faceIndex + 1], faces[faceIndex]]));
-                    }
+                    newMesh.Faces.Add(new Face([faces[faceIndex + 2], faces[faceIndex + 1], faces[faceIndex]]));
                 }
 
                 // Get info
@@ -240,7 +212,7 @@ namespace FromAssimp
                     if (doTransform)
                     {
                         int boneTransformIndex = -1;
-                        if (doNormalWTransform && validNormalW) 
+                        if (doNormalWTransform && validNormalW)
                         {
                             boneTransformIndex = meshBoneIndices[normalW];
                         }

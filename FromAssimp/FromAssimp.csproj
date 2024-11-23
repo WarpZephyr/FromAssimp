@@ -5,7 +5,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\assimpnet\AssimpNet\AssimpNet.csproj" />
+    <PackageReference Include="AssimpNet" Version="5.0.0-beta1" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\SoulsFormatsExtended\SoulsFormats\SoulsFormatsExtended.csproj" />
   </ItemGroup>
 </Project>
