@@ -25,6 +25,9 @@ namespace FromAssimp.Extensions
             return new Vector3(vector.X, vector.Y, vector.Z);
         }
 
+        public static Vector4 ToNumericsVector4(this Vector3D vector)
+            => new(vector.X, vector.Y, vector.Z, 0);
+
         public static Vector3 ToNumericsVector3(this Vector4 vector)
             => new(vector.X, vector.Y, vector.Z);
     }

@@ -1,9 +1,10 @@
-﻿using AssimpMatrix4x4 = Assimp.Matrix4x4;
+﻿using System.Numerics;
+using AssimpMatrix4x4 = Assimp.Matrix4x4;
 using NumericsMatrix4x4 = System.Numerics.Matrix4x4;
 
 namespace FromAssimp.Extensions
 {
-    public static class MatrixExtensions
+    internal static class MatrixExtensions
     {
         /// <summary>
         /// Convert a <see cref="NumericsMatrix4x4"/> into an <see cref="AssimpMatrix4x4"/>.
@@ -29,6 +30,37 @@ namespace FromAssimp.Extensions
                                  mat4.A2, mat4.B2, mat4.C2, mat4.D2,
                                  mat4.A3, mat4.B3, mat4.C3, mat4.D3,
                                  mat4.A4, mat4.B4, mat4.C4, mat4.D4);
+        }
+
+        /// <summary>
+        /// Convert a <see cref="NumericsMatrix4x4"/>'s rotation to a euler XZY rotation vector.
+        /// </summary>
+        /// <param name="m">The matrix.</param>
+        /// <returns>A euler XZY rotation vector.</returns>
+        public static Vector3 ToEulerXZY(this NumericsMatrix4x4 m)
+        {
+            Vector3 ret;
+            ret.Z = MathF.Asin(-Math.Clamp(-m.M12, -1, 1));
+
+            if (Math.Abs(m.M12) < 0.9999999)
+            {
+                ret.X = MathF.Atan2(-m.M32, m.M22);
+                ret.Y = MathF.Atan2(-m.M13, m.M11);
+            }
+            else
+            {
+                ret.X = MathF.Atan2(m.M23, m.M33);
+                ret.Y = 0;
+            }
+
+            float pi = MathHelper.Pi;
+            float negPi = -pi;
+            float doublePi = 2 * pi;
+
+            ret.X = ret.X <= negPi ? ret.X + doublePi : ret.X;
+            ret.Y = ret.Y <= negPi ? ret.Y + doublePi : ret.Y;
+            ret.Z = ret.Z <= negPi ? ret.Z + doublePi : ret.Z;
+            return ret;
         }
     }
 }

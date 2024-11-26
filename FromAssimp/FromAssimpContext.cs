@@ -3,6 +3,7 @@ using SoulsFormats;
 using FromAssimp.Import;
 using FromAssimp.Helpers;
 using FromAssimp.Extensions;
+using FromAssimp.Export;
 
 namespace FromAssimp
 {
@@ -212,7 +213,8 @@ namespace FromAssimp
         /// <returns>Whether or not the export was successful.</returns>
         public bool ExportFile(Scene scene, string path, string exportFormatId)
         {
-            return ExportFile(scene, path, exportFormatId, PostProcessSteps.None);
+            PerformConversionOptions(scene, exportFormatId);
+            return Context.ExportFile(scene, path, exportFormatId);
         }
 
         /// <summary>
@@ -224,6 +226,31 @@ namespace FromAssimp
         /// <param name="preProcessing">Preprocessing flags to apply to the model before it is exported.</param>
         /// <returns>Whether or not the export was successful.</returns>
         public bool ExportFile(Scene scene, string path, string exportFormatId, PostProcessSteps preProcessing)
+        {
+            PerformConversionOptions(scene, exportFormatId);
+            return Context.ExportFile(scene, path, exportFormatId, preProcessing);
+        }
+
+        /// <summary>
+        /// Exports a scene to a <see cref="FLVER0"/>.<br/>
+        /// The scene must be scaled to meters and mirrored to allow XZY euler rotation extraction.<br/>
+        /// Experimental.
+        /// </summary>
+        /// <param name="scene">The scene to export.</param>
+        /// <returns>A new <see cref="FLVER0"/>.</returns>
+        public FLVER0 ExportToFLVER0(Scene scene)
+        {
+            return FlverExporter.ExportFlver0(scene);
+        }
+
+        #region Scene Helpers
+
+        /// <summary>
+        /// Performs the conversion options before export.
+        /// </summary>
+        /// <param name="scene">The scene.</param>
+        /// <param name="exportFormatId">The export format ID.</param>
+        private void PerformConversionOptions(Scene scene, string exportFormatId)
         {
             float scale = ExportScale;
             if (ConvertUnitSystem && IsFbxFormat(exportFormatId))
@@ -246,9 +273,55 @@ namespace FromAssimp
                 var mirror = TransformHelper.GetMirrorMatrix(MirrorX, MirrorY, MirrorZ).ToAssimpMatrix4x4();
                 MirrorHelper.MirrorScene(scene, mirror);
             }
-
-            return Context.ExportFile(scene, path, exportFormatId);
         }
+
+        /// <summary>
+        /// Scales a scene uniformly.
+        /// </summary>
+        /// <param name="scene">The scene to scale.</param>
+        /// <param name="scale">The scale.</param>
+        public void ScaleSceneUniform(Scene scene, float scale)
+        {
+            ScaleHelper.ScaleSceneUniform(scene, scale);
+        }
+
+        /// <summary>
+        /// Scales a scene.
+        /// </summary>
+        /// <param name="scene">The scene to scale.</param>
+        /// <param name="scaleX">The X scale.</param>
+        /// <param name="scaleY">The Y scale.</param>
+        /// <param name="scaleZ">The Z scale.</param>
+        public void ScaleScene(Scene scene, float scaleX, float scaleY, float scaleZ)
+        {
+            ScaleHelper.ScaleScene(scene, scaleX, scaleY, scaleZ);
+        }
+
+        /// <summary>
+        /// Mirrors a scene.
+        /// </summary>
+        /// <param name="scene">The scene to mirror.</param>
+        /// <param name="mirror">The mirror.</param>
+        public void MirrorScene(Scene scene, Matrix4x4 mirror)
+        {
+            MirrorHelper.MirrorScene(scene, mirror);
+        }
+
+        /// <summary>
+        /// Gets a mirror matrix according to the selected mirroring.
+        /// </summary>
+        /// <param name="mirrorX">Whether or not to mirror X.</param>
+        /// <param name="mirrorY">Whether or not to mirror Y.</param>
+        /// <param name="mirrorZ">Whether or not to mirror Z.</param>
+        /// <returns>A mirror matrix.</returns>
+        public Matrix4x4 GetMirrorMatrix(bool mirrorX, bool mirrorY, bool mirrorZ)
+        {
+            return TransformHelper.GetMirrorMatrix(mirrorX, mirrorY, mirrorZ).ToAssimpMatrix4x4();
+        }
+
+        #endregion
+
+        #region Format Helpers
 
         /// <summary>
         /// Get the appropiate extension for the chosen format.
@@ -282,6 +355,8 @@ namespace FromAssimp
                 _ => value.Contains("fbx")
             };
         }
+
+        #endregion
 
         #region IDisposable Implementation
 

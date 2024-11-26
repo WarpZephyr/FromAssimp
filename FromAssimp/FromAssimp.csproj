@@ -9,5 +9,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\SoulsFormatsExtended\SoulsFormats\SoulsFormatsExtended.csproj" />
+    <ProjectReference Include="..\NvTriStripDotNet\NvTriStripDotNet.csproj" />
   </ItemGroup>
 </Project>
