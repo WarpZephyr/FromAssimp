@@ -21,6 +21,7 @@ namespace FromAssimp.Helpers
             }
 
             var stripifier = new NvStripifier();
+            stripifier.UseRestart = true;
             stripifier.RestartValue = restart;
             stripifier.CacheSize = cacheSize;
             stripifier.ListsOnly = false;

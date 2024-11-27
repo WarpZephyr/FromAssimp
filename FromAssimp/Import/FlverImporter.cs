@@ -185,6 +185,9 @@ namespace FromAssimp.Import
 
                 // Reserve bone map for vertex weights
                 Dictionary<int, Bone> meshBoneMap = new Dictionary<int, Bone>(meshBoneIndices.Length);
+                bool ValidMeshBoneIndex(int index)
+                        => index > -1 && index < meshBoneIndices.Length // Make sure mesh bone index is valid
+                        && meshBoneIndices[index] > -1 && meshBoneIndices[index] < model.Nodes.Count; // Make sure bone index is valid;
 
                 // Add vertices
                 bool doTransform = isStatic;
@@ -204,9 +207,12 @@ namespace FromAssimp.Import
                     var colors = vertex.Colors;
                     var boneIndices = vertex.BoneIndices;
                     var boneWeights = vertex.BoneWeights;
-                    bool validNormalW = usesNormalW &&
-                        normalW > -1 && normalW < meshBoneIndices.Length && // Make sure mesh bone index is valid
-                        meshBoneIndices[normalW] > -1 && meshBoneIndices[normalW] < model.Nodes.Count; // Make sure bone index is valid
+                    bool validNormalW = usesNormalW && ValidMeshBoneIndex(normalW);
+                    bool validBoneIndices = hasBoneIndices
+                        && ValidMeshBoneIndex(boneIndices[0])
+                        && ValidMeshBoneIndex(boneIndices[1])
+                        && ValidMeshBoneIndex(boneIndices[2])
+                        && ValidMeshBoneIndex(boneIndices[3]);
 
                     // Transform elements
                     if (doTransform)
@@ -216,9 +222,7 @@ namespace FromAssimp.Import
                         {
                             boneTransformIndex = meshBoneIndices[normalW];
                         }
-                        else if (doBoneIndexTransform &&
-                            boneIndices[0] > -1 && boneIndices[0] < meshBoneIndices.Length && // Make sure mesh bone index is valid
-                            meshBoneIndices[boneIndices[0]] > -1 && meshBoneIndices[boneIndices[0]] < model.Nodes.Count) // Make sure bone index is valid
+                        else if (doBoneIndexTransform && validBoneIndices)
                         {
                             boneTransformIndex = meshBoneIndices[boneIndices[0]];
                         }
@@ -301,7 +305,7 @@ namespace FromAssimp.Import
                     boneWeightsAlloc[1] = 0f;
                     boneWeightsAlloc[2] = 0f;
                     boneWeightsAlloc[3] = 0f;
-                    if (hasBoneIndices)
+                    if (validBoneIndices)
                     {
                         boneIndicesAlloc[0] = meshBoneIndices[boneIndices[0]];
                         boneIndicesAlloc[1] = meshBoneIndices[boneIndices[1]];
@@ -566,7 +570,7 @@ namespace FromAssimp.Import
                 bool hasColors = false;
                 bool hasBoneIndices = false;
                 bool hasBoneWeights = false;
-                bool hasDefaultBoneIndex = mesh.NodeIndex > -1 && mesh.NodeIndex < model.Nodes.Count;
+                bool validDefaultBoneIndex = mesh.NodeIndex > -1 && mesh.NodeIndex < model.Nodes.Count;
                 int tangentCount = 0; // Not used at the moment
                 int uvCount = 0; // Not used at the moment
                 int colorCount = 0; // Not used at the moment
@@ -626,12 +630,15 @@ namespace FromAssimp.Import
 
                 // Reserve bone map for vertex weights
                 Dictionary<int, Bone> meshBoneMap = new Dictionary<int, Bone>(meshBoneIndices.Count);
+                bool ValidMeshBoneIndex(int index)
+                        => index > -1 && index < meshBoneIndices.Count // Make sure mesh bone index is valid
+                        && meshBoneIndices[index] > -1 && meshBoneIndices[index] < model.Nodes.Count; // Make sure bone index is valid;
 
                 // Add vertices
                 bool doTransform = isStatic;
                 bool doNormalWTransform = usesNormalW;
                 bool doBoneIndexTransform = hasBoneIndices;
-                bool doDefaultTransform = !doNormalWTransform & hasDefaultBoneIndex;
+                bool doDefaultTransform = !doNormalWTransform & validDefaultBoneIndex;
                 for (int vertexIndex = 0; vertexIndex < mesh.Vertices.Count; vertexIndex++)
                 {
                     // Gather elements
@@ -645,9 +652,12 @@ namespace FromAssimp.Import
                     var colors = vertex.Colors;
                     var boneIndices = vertex.BoneIndices;
                     var boneWeights = vertex.BoneWeights;
-                    bool validNormalW = usesNormalW &&
-                        normalW > -1 && normalW < meshBoneIndices.Count && // Make sure mesh bone index is valid
-                        meshBoneIndices[normalW] > -1 && meshBoneIndices[normalW] < model.Nodes.Count; // Make sure bone index is valid
+                    bool validNormalW = usesNormalW && ValidMeshBoneIndex(normalW);
+                    bool validBoneIndices = hasBoneIndices
+                        && ValidMeshBoneIndex(boneIndices[0])
+                        && ValidMeshBoneIndex(boneIndices[1])
+                        && ValidMeshBoneIndex(boneIndices[2])
+                        && ValidMeshBoneIndex(boneIndices[3]);
 
                     // Transform elements
                     if (doTransform)
@@ -657,9 +667,7 @@ namespace FromAssimp.Import
                         {
                             boneTransformIndex = meshBoneIndices[normalW];
                         }
-                        else if (doBoneIndexTransform &&
-                            boneIndices[0] > -1 && boneIndices[0] < meshBoneIndices.Count && // Make sure mesh bone index is valid
-                            meshBoneIndices[boneIndices[0]] > -1 && meshBoneIndices[boneIndices[0]] < model.Nodes.Count) // Make sure bone index is valid
+                        else if (doBoneIndexTransform && validBoneIndices)
                         {
                             boneTransformIndex = meshBoneIndices[boneIndices[0]];
                         }
@@ -742,7 +750,7 @@ namespace FromAssimp.Import
                     boneWeightsAlloc[1] = 0f;
                     boneWeightsAlloc[2] = 0f;
                     boneWeightsAlloc[3] = 0f;
-                    if (hasBoneIndices)
+                    if (validBoneIndices)
                     {
                         boneIndicesAlloc[0] = meshBoneIndices[boneIndices[0]];
                         boneIndicesAlloc[1] = meshBoneIndices[boneIndices[1]];
@@ -775,7 +783,7 @@ namespace FromAssimp.Import
                         boneWeightsAlloc[2] = 0f;
                         boneWeightsAlloc[3] = 0f;
                     }
-                    else if (hasDefaultBoneIndex)
+                    else if (validDefaultBoneIndex)
                     {
                         boneIndicesAlloc[0] = defaultBoneIndex;
                         boneIndicesAlloc[1] = -1;
