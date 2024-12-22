@@ -23,6 +23,11 @@ namespace FromAssimp
         public bool DoCheckFlip { get; set; }
 
         /// <summary>
+        /// Whether or not to ignore bone scale when converting.
+        /// </summary>
+        public bool ScalelessBones { get; set; }
+
+        /// <summary>
         /// Whether or not to mirror across the X axis.
         /// </summary>
         public bool MirrorX { get; set; }
@@ -171,7 +176,7 @@ namespace FromAssimp
         /// <returns>A <see cref="Scene"/>.</returns>
         public Scene ImportFileFromFlver0(FLVER0 model)
         {
-            return FlverImporter.ImportFlver0(model, DoCheckFlip);
+            return FlverImporter.ImportFlver0(model, DoCheckFlip, ScalelessBones);
         }
 
         /// <summary>
@@ -181,7 +186,7 @@ namespace FromAssimp
         /// <returns>A <see cref="Scene"/>.</returns>
         public Scene ImportFileFromFlver2(FLVER2 model)
         {
-            return FlverImporter.ImportFlver2(model);
+            return FlverImporter.ImportFlver2(model, ScalelessBones);
         }
 
         /// <summary>
@@ -191,7 +196,7 @@ namespace FromAssimp
         /// <returns>A <see cref="Scene"/>.</returns>
         public Scene ImportFileFromMdl4(MDL4 model)
         {
-            return Mdl4Importer.ImportMdl4(model);
+            return Mdl4Importer.ImportMdl4(model, ScalelessBones);
         }
 
         /// <summary>
@@ -201,7 +206,7 @@ namespace FromAssimp
         /// <returns>A <see cref="Scene"/>.</returns>
         public Scene ImportFileFromSmd4(SMD4 model)
         {
-            return Smd4Importer.ImportSmd4(model);
+            return Smd4Importer.ImportSmd4(model, ScalelessBones);
         }
 
         /// <summary>

@@ -9,7 +9,7 @@ namespace FromAssimp.Import
 {
     internal static class Smd4Importer
     {
-        public static Scene ImportSmd4(SMD4 model)
+        public static Scene ImportSmd4(SMD4 model, bool scalelessBones)
         {
             var scene = new Scene();
             var rootNode = new Node("Root");
@@ -34,7 +34,9 @@ namespace FromAssimp.Import
             for (int boneIndex = 0; boneIndex < model.Nodes.Count; boneIndex++)
             {
                 var bone = model.Nodes[boneIndex];
-                var localTransform = bone.ComputeLocalTransform();
+
+                // Some models do not obey the scale of the bone
+                var localTransform = scalelessBones ? bone.ComputeLocalTransformScaleless() : bone.ComputeLocalTransform();
                 Node parentNode = bone.ParentIndex > -1 ? newBoneNodes[bone.ParentIndex] : boneRootNode;
 
                 localTransforms[boneIndex] = localTransform;

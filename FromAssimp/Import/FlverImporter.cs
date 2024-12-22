@@ -9,7 +9,7 @@ namespace FromAssimp.Import
 {
     internal static class FlverImporter
     {
-        public static Scene ImportFlver0(FLVER0 model, bool doCheckFlip)
+        public static Scene ImportFlver0(FLVER0 model, bool doCheckFlip, bool scalelessBones)
         {
             var scene = new Scene();
             var rootNode = new Node("Root");
@@ -33,7 +33,9 @@ namespace FromAssimp.Import
             for (int boneIndex = 0; boneIndex < model.Nodes.Count; boneIndex++)
             {
                 var bone = model.Nodes[boneIndex];
-                var localTransform = bone.ComputeLocalTransform();
+                
+                // Some models do not obey the scale of the bone
+                var localTransform = scalelessBones ? bone.ComputeLocalTransformScaleless() : bone.ComputeLocalTransform();
                 Node parentNode = bone.ParentIndex > -1 ? newBoneNodes[bone.ParentIndex] : boneRootNode;
 
                 localTransforms[boneIndex] = localTransform;
@@ -436,7 +438,7 @@ namespace FromAssimp.Import
             return scene;
         }
 
-        public static Scene ImportFlver2(FLVER2 model)
+        public static Scene ImportFlver2(FLVER2 model, bool scalelessBones)
         {
             var scene = new Scene();
             var rootNode = new Node("Root");
@@ -460,7 +462,9 @@ namespace FromAssimp.Import
             for (int boneIndex = 0; boneIndex < model.Nodes.Count; boneIndex++)
             {
                 var bone = model.Nodes[boneIndex];
-                var localTransform = bone.ComputeLocalTransform();
+
+                // Some models do not obey the scale of the bone
+                var localTransform = scalelessBones ? bone.ComputeLocalTransformScaleless() : bone.ComputeLocalTransform();
                 Node parentNode = bone.ParentIndex > -1 ? newBoneNodes[bone.ParentIndex] : boneRootNode;
 
                 localTransforms[boneIndex] = localTransform;
