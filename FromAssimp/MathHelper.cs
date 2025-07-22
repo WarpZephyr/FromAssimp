@@ -1,4 +1,6 @@
-﻿namespace FromAssimp
+﻿using System;
+
+namespace FromAssimp
 {
     public static class MathHelper
     {

@@ -1,6 +1,8 @@
 ﻿using Assimp;
 using FromAssimp.Extensions;
-using SoulsFormats;
+using SoulsFormats.Other;
+using System;
+using System.Collections.Generic;
 using System.Numerics;
 using AssimpMatrix4x4 = Assimp.Matrix4x4;
 using NumericsMatrix4x4 = System.Numerics.Matrix4x4;
@@ -115,7 +117,7 @@ namespace FromAssimp.Import
                 List<ushort> faces = mesh.Triangulate(true, true);
                 for (int i = 0; i < faces.Count - 2; i += 3)
                 {
-                    newMesh.Faces.Add(new Face([faces[i + 2], faces[i + 1], faces[i]]));
+                    newMesh.Faces.Add(new Face([faces[i], faces[i + 1], faces[i + 2]]));
                 }
 
                 // Get info
@@ -178,6 +180,18 @@ namespace FromAssimp.Import
                         hasColor = true;
                         hasUVs = true;
                         uvCount = 4;
+                    }
+                    else if (mesh.VertexFormat == 1)
+                    {
+                        hasPosition = true;
+                        hasNormal = true;
+                        usesNormalW = false;
+                        hasTangent = true;
+                        hasColor = true;
+                        hasUVs = true;
+                        uvCount = 4;
+                        hasBoneIndices = true;
+                        hasBoneWeights = true;
                     }
                 }
 

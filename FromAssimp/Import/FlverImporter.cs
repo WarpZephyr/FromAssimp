@@ -1,9 +1,11 @@
 ﻿using Assimp;
-using SoulsFormats;
-using NumericsMatrix4x4 = System.Numerics.Matrix4x4;
-using AssimpMatrix4x4 = Assimp.Matrix4x4;
 using FromAssimp.Extensions;
+using SoulsFormats;
+using System;
+using System.Collections.Generic;
 using System.Numerics;
+using AssimpMatrix4x4 = Assimp.Matrix4x4;
+using NumericsMatrix4x4 = System.Numerics.Matrix4x4;
 
 namespace FromAssimp.Import
 {
@@ -33,7 +35,7 @@ namespace FromAssimp.Import
             for (int boneIndex = 0; boneIndex < model.Nodes.Count; boneIndex++)
             {
                 var bone = model.Nodes[boneIndex];
-                
+
                 // Some models do not obey the scale of the bone
                 var localTransform = scalelessBones ? bone.ComputeLocalTransformScaleless() : bone.ComputeLocalTransform();
                 Node parentNode = bone.ParentIndex > -1 ? newBoneNodes[bone.ParentIndex] : boneRootNode;
@@ -132,12 +134,12 @@ namespace FromAssimp.Import
                 bool hasColors = false;
                 bool hasBoneIndices = false;
                 bool hasBoneWeights = false;
-                bool hasDefaultBoneIndex = mesh.DefaultBoneIndex > -1 && mesh.DefaultBoneIndex < model.Nodes.Count;
+                bool validDefaultBoneIndex = mesh.NodeIndex > -1 && mesh.NodeIndex < model.Nodes.Count;
                 int tangentCount = 0; // Not used at the moment
                 int uvCount = 0; // Not used at the moment
                 int colorCount = 0; // Not used at the moment
                 var meshBoneIndices = mesh.BoneIndices;
-                var defaultBoneIndex = mesh.DefaultBoneIndex;
+                var defaultBoneIndex = mesh.NodeIndex;
                 foreach (var member in layout)
                 {
                     switch (member.Semantic)
@@ -153,18 +155,18 @@ namespace FromAssimp.Import
                             break;
                         case FLVER.LayoutSemantic.Normal:
                             hasNormal = true;
-                            if (member.Type == FLVER.LayoutType.Byte4A ||
-                                member.Type == FLVER.LayoutType.Byte4B ||
+                            if (member.Type == FLVER.LayoutType.Color ||
+                                member.Type == FLVER.LayoutType.UByte4 ||
                                 member.Type == FLVER.LayoutType.Byte4E ||
-                                member.Type == FLVER.LayoutType.Short2toFloat2)
+                                member.Type == FLVER.LayoutType.Byte4)
                             {
                                 usesNormalW = true; // TODO: Investigate this more
                             }
                             break;
                         case FLVER.LayoutSemantic.UV:
                             hasUVs = true;
-                            if (member.Type == FLVER.LayoutType.Float3 || 
-                                member.Type == FLVER.LayoutType.Short4toFloat4B)
+                            if (member.Type == FLVER.LayoutType.Float3 ||
+                                member.Type == FLVER.LayoutType.Half4)
                             {
                                 hasUVW = true;
                             }
@@ -193,9 +195,9 @@ namespace FromAssimp.Import
 
                 // Add vertices
                 bool doTransform = isStatic;
-                bool doNormalWTransform = usesNormalW;
+                bool doNormalWTransform = usesNormalW && (meshBoneIndices.Length > 0);
                 bool doBoneIndexTransform = hasBoneIndices;
-                bool doDefaultTransform = !doNormalWTransform & hasDefaultBoneIndex;
+                bool doDefaultTransform = validDefaultBoneIndex && !doNormalWTransform;
                 for (int vertexIndex = 0; vertexIndex < mesh.Vertices.Count; vertexIndex++)
                 {
                     // Gather elements
@@ -340,7 +342,7 @@ namespace FromAssimp.Import
                         boneWeightsAlloc[2] = 0f;
                         boneWeightsAlloc[3] = 0f;
                     }
-                    else if (hasDefaultBoneIndex)
+                    else if (validDefaultBoneIndex)
                     {
                         boneIndicesAlloc[0] = defaultBoneIndex;
                         boneIndicesAlloc[1] = -1;
@@ -599,10 +601,10 @@ namespace FromAssimp.Import
                                 break;
                             case FLVER.LayoutSemantic.Normal:
                                 hasNormal = true;
-                                if (member.Type == FLVER.LayoutType.Byte4A ||
-                                    member.Type == FLVER.LayoutType.Byte4B ||
+                                if (member.Type == FLVER.LayoutType.Color ||
+                                    member.Type == FLVER.LayoutType.UByte4 ||
                                     member.Type == FLVER.LayoutType.Byte4E ||
-                                    member.Type == FLVER.LayoutType.Short2toFloat2)
+                                    member.Type == FLVER.LayoutType.Byte4)
                                 {
                                     usesNormalW = true; // TODO: Investigate this more
                                 }
@@ -610,7 +612,7 @@ namespace FromAssimp.Import
                             case FLVER.LayoutSemantic.UV:
                                 hasUVs = true;
                                 if (member.Type == FLVER.LayoutType.Float3 ||
-                                member.Type == FLVER.LayoutType.Short4toFloat4B)
+                                    member.Type == FLVER.LayoutType.Half4)
                                 {
                                     hasUVW = true;
                                 }
@@ -640,9 +642,9 @@ namespace FromAssimp.Import
 
                 // Add vertices
                 bool doTransform = isStatic;
-                bool doNormalWTransform = usesNormalW;
+                bool doNormalWTransform = usesNormalW && (meshBoneIndices.Count > 0);
                 bool doBoneIndexTransform = hasBoneIndices;
-                bool doDefaultTransform = !doNormalWTransform & validDefaultBoneIndex;
+                bool doDefaultTransform = validDefaultBoneIndex && !doNormalWTransform;
                 for (int vertexIndex = 0; vertexIndex < mesh.Vertices.Count; vertexIndex++)
                 {
                     // Gather elements

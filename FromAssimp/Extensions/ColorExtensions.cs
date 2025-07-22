@@ -1,6 +1,6 @@
-﻿using System.Drawing;
-using Assimp;
+﻿using Assimp;
 using SoulsFormats;
+using System.Drawing;
 
 namespace FromAssimp.Extensions
 {

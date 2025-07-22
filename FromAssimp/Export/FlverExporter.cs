@@ -2,6 +2,9 @@
 using FromAssimp.Extensions;
 using FromAssimp.Helpers;
 using SoulsFormats;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using NumericsMatrix4x4 = System.Numerics.Matrix4x4;
 
@@ -185,19 +188,19 @@ namespace FromAssimp.Export
 
                 if (assimpMesh.HasNormals)
                 {
-                    var member = new FLVER.LayoutMember(FLVER.LayoutType.Byte4A, FLVER.LayoutSemantic.Normal, 0, 0);
+                    var member = new FLVER.LayoutMember(FLVER.LayoutType.Color, FLVER.LayoutSemantic.Normal, 0, 0);
                     newLayout.Add(member);
                 }
 
                 if (assimpMesh.HasTangents)
                 {
-                    var member = new FLVER.LayoutMember(FLVER.LayoutType.Byte4A, FLVER.LayoutSemantic.Tangent, 0, 0);
+                    var member = new FLVER.LayoutMember(FLVER.LayoutType.Color, FLVER.LayoutSemantic.Tangent, 0, 0);
                     newLayout.Add(member);
                 }
 
                 if (assimpMesh.HasBiTangents)
                 {
-                    var member = new FLVER.LayoutMember(FLVER.LayoutType.Byte4A, FLVER.LayoutSemantic.Bitangent, 0, 0);
+                    var member = new FLVER.LayoutMember(FLVER.LayoutType.Color, FLVER.LayoutSemantic.Bitangent, 0, 0);
                     newLayout.Add(member);
                 }
 
@@ -206,7 +209,7 @@ namespace FromAssimp.Export
                 {
                     for (int i = 0; i < assimpMesh.ColorCount; i++)
                     {
-                        var member = new FLVER.LayoutMember(FLVER.LayoutType.Byte4A, FLVER.LayoutSemantic.VertexColor, memberIndex++, 0);
+                        var member = new FLVER.LayoutMember(FLVER.LayoutType.Color, FLVER.LayoutSemantic.VertexColor, memberIndex++, 0);
                         newLayout.Add(member);
                     }
                 }
@@ -235,7 +238,7 @@ namespace FromAssimp.Export
                 {
                     if (assimpMesh.VertexBoneCount > 1)
                     {
-                        var member = new FLVER.LayoutMember(FLVER.LayoutType.Byte4B, FLVER.LayoutSemantic.BoneIndices, 0, 0);
+                        var member = new FLVER.LayoutMember(FLVER.LayoutType.UByte4, FLVER.LayoutSemantic.BoneIndices, 0, 0);
                         newLayout.Add(member);
                         useBoneIndices = true;
                     }
@@ -250,7 +253,7 @@ namespace FromAssimp.Export
                 {
                     if (assimpMesh.VertexBoneCount > 1)
                     {
-                        var member = new FLVER.LayoutMember(FLVER.LayoutType.Byte4A, FLVER.LayoutSemantic.BoneWeights, 0, 0);
+                        var member = new FLVER.LayoutMember(FLVER.LayoutType.Color, FLVER.LayoutSemantic.BoneWeights, 0, 0);
                         newLayout.Add(member);
                         useBoneWeights = true;
                     }

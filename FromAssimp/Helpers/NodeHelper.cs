@@ -1,4 +1,5 @@
 ﻿using Assimp;
+using System.Collections.Generic;
 
 namespace FromAssimp.Helpers
 {

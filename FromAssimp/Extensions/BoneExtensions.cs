@@ -1,4 +1,5 @@
 ﻿using SoulsFormats;
+using SoulsFormats.Other;
 using System.Numerics;
 
 namespace FromAssimp.Extensions

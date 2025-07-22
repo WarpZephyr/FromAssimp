@@ -1,9 +1,12 @@
 ﻿using Assimp;
-using SoulsFormats;
-using FromAssimp.Import;
-using FromAssimp.Helpers;
-using FromAssimp.Extensions;
 using FromAssimp.Export;
+using FromAssimp.Extensions;
+using FromAssimp.Helpers;
+using FromAssimp.Import;
+using SoulsFormats;
+using SoulsFormats.Other;
+using System;
+using System.IO;
 
 namespace FromAssimp
 {

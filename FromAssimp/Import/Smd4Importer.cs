@@ -1,6 +1,8 @@
 ﻿using Assimp;
 using FromAssimp.Extensions;
 using SoulsFormats;
+using System;
+using System.Collections.Generic;
 using System.Numerics;
 using AssimpMatrix4x4 = Assimp.Matrix4x4;
 using NumericsMatrix4x4 = System.Numerics.Matrix4x4;
@@ -113,7 +115,7 @@ namespace FromAssimp.Import
                 newMesh.MaterialIndex = meshIndex; // SMD4 isn't known to have materials
 
                 // Add faces
-                List<ushort> faces = mesh.Triangulate(true, true);
+                List<ushort> faces = mesh.Triangulate(true);
                 for (int i = 0; i < faces.Count - 2; i += 3)
                 {
                     newMesh.Faces.Add(new Face([faces[i + 2], faces[i + 1], faces[i]]));

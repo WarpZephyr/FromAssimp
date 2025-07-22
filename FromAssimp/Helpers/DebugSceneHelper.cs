@@ -1,5 +1,6 @@
 ﻿using Assimp;
 using FromAssimp.Extensions;
+using System;
 using System.Text;
 using NumericsMatrix4x4 = System.Numerics.Matrix4x4;
 

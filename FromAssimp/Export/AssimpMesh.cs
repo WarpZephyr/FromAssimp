@@ -1,5 +1,6 @@
 ﻿using Assimp;
 using FromAssimp.Helpers;
+using System.Collections.Generic;
 
 namespace FromAssimp.Export
 {
@@ -89,7 +90,7 @@ namespace FromAssimp.Export
             {
                 var vertex = new Vertex();
                 vertex.Position = mesh.Vertices[vertexIndex];
-                
+
                 if (HasNormals)
                     vertex.Normal = mesh.Normals[vertexIndex];
 

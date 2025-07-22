@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System;
+using System.Numerics;
 using AssimpMatrix4x4 = Assimp.Matrix4x4;
 using NumericsMatrix4x4 = System.Numerics.Matrix4x4;
 
