@@ -136,7 +136,7 @@ namespace FromAssimp.Export
                 {
                     var newTexture = new FLVER0.Texture();
                     newTexture.Path = property.Name;
-                    newTexture.Type = $"{property.TextureType}";
+                    newTexture.ParamName = $"{property.TextureType}";
                     newMaterial.Textures.Add(newTexture);
                 }
 
